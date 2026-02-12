@@ -73,13 +73,25 @@ const moviesOutput = document.getElementById('movies-output');
 
 async function getMovies() {
     const apiKey = '2bbc11964b3c50192905a64042d333bc'; // Replace with your TMDb API key
-    const response = await fetch(`https://api.themoviedb.org/3/account/{account_id}/favorite/movies?api_key=${apiKey}`);
+    try {
+        // Use a public endpoint that works with an API key only (no user account auth)
+        const response = await fetch(`https://api.themoviedb.org/3/movie/popular?api_key=${apiKey}&language=en-US&page=1`);
+        if (!response.ok) {
+            throw new Error(`TMDb error: ${response.status}`);
+        }
+        const data = await response.json();
+        const movies = data.results || [];
+        console.log(data);
 
-    const data = await response.json();
-    const movies = data.results;
-    console.log(data);
-
-    moviesOutput.innerHTML = movies.map(movie => `<p>${movie.title}</p>`).join('');
+        if (movies.length === 0) {
+            moviesOutput.innerHTML = '<p>No movies found.</p>';
+        } else {
+            moviesOutput.innerHTML = movies.map(movie => `<p>${movie.title}</p>`).join('');
+        }
+    } catch (error) {
+        console.error('Error fetching movies:', error);
+        moviesOutput.innerHTML = `<p>Error loading movies: ${error.message}</p>`;
+    }
 }   
 
 // GITHUB API
@@ -108,7 +120,10 @@ async function getGitHubUser() {
     } else {
         githubOutput.innerHTML = `<p>Name: ${data.name}<br>Bio: ${data.bio}<br>Public Repos: ${data.public_repos}</p>`;
     }
-}   
+} 
+
+
+
 
 // JOKE API
 
