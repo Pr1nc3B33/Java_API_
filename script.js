@@ -35,19 +35,46 @@ const weatherApi = document.getElementById('weather-api');
 const weatherOutput = document.getElementById('weather-output');
 
 async function getWeather() {
-    const city = document.getElementById('weather-output').value;
-    const apiKey = 'https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&hourly=temperature_2m'; // Replace with your OpenWeatherMap API key
-    const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&hourly=temperature_2m&models=gfs_seamless`);
-    const data = await response.json();
-    console.log(data);
+    const cityInput = document.getElementById('weather-city');
+    if (!cityInput) {
+        weatherOutput.innerHTML = `<p>Error: weather-city input element not found</p>`;
+        return;
+    }
+    const city = cityInput.value.trim();
+    if (!city) {
+        weatherOutput.innerHTML = `<p>Please enter a city name</p>`;
+        return;
+    }
 
-    if (data.cod === 200) {
-        const temp = data.main.temp;
-        const description = data.weather[0].description;
-        weatherOutput.innerHTML = `<p>Temperature in ${city}: ${temp}°C, ${description}</p>`;
-    } else {
-        weatherOutput.innerHTML = `<p>City not found. Please try again.</p>`;
-    }               
+    try {
+        // Geocode the city name to lat/lon using Open-Meteo's geocoding API
+        const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`);
+        if (!geoRes.ok) throw new Error(`Geocoding error: ${geoRes.status}`);
+        const geoData = await geoRes.json();
+        if (!geoData.results || geoData.results.length === 0) {
+            weatherOutput.innerHTML = `<p>City not found. Please try again.</p>`;
+            return;
+        }
+        const { latitude, longitude, name, country } = geoData.results[0];
+
+        // Fetch current weather for the resolved coordinates
+        const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
+        if (!response.ok) throw new Error(`Weather API error: ${response.status}`);
+        const data = await response.json();
+        console.log(data);
+
+        const temp = data.current_weather && data.current_weather.temperature;
+        const wind = data.current_weather && data.current_weather.windspeed;
+        if (temp === undefined) {
+            weatherOutput.innerHTML = `<p>Weather data unavailable for ${city}.</p>`;
+            return;
+        }
+
+        weatherOutput.innerHTML = `<p>Temperature in ${name}, ${country}: ${temp}°C (wind ${wind} km/h)</p>`;
+    } catch (error) {
+        console.error('Error fetching weather:', error);
+        weatherOutput.innerHTML = `<p>Error fetching weather: ${error.message}</p>`;
+    }
 
 }
 
